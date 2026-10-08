@@ -1,18 +1,17 @@
-import { Button, VerticalBox } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { SidebarExample } from "sidebar-example.slint";
 
 export component AppWindow inherits Window {
-    in-out property <int> counter: 42;
-    callback request-increase-value();
-    VerticalBox {
-        Text {
-            text: "Counter: \{root.counter}";
-        }
+    title: "Slint Sidebar Example";
+    width: 1200px;
+    height: 800px;
+    background: Theme.background;
 
-        Button {
-            text: "Increase value";
-            clicked => {
-                root.request-increase-value();
-            }
-        }
+    // The example reads `Theme.viewport` for its page padding and the sidebar
+    // width, so the window reports its own width there.
+    init => {
+        Theme.viewport = self.width;
     }
+
+    SidebarExample { }
 }

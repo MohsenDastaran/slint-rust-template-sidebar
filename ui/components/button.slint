@@ -1,0 +1,214 @@
+import { Theme, ControlSize, ButtonVariant } from "theme.slint";
+import { Icon } from "icon.slint";
+
+// A push button. Mirrors GPUI Component's `Button`: variants, outline, sizes,
+// leading and trailing icons, a loading spinner, and a selected state.
+export component Button {
+    in property <string> text;
+    in property <string> icon;
+    in property <string> suffix-icon;
+    in property <ButtonVariant> variant: ButtonVariant.default;
+    in property <ControlSize> size: ControlSize.medium;
+    in property <bool> outline;
+    in property <bool> enabled: true;
+    // Square the leading or trailing side so adjacent buttons in a group share one edge.
+    in property <bool> group-start;
+    in property <bool> group-end;
+    in property <bool> group-vertical;
+    in property <bool> loading;
+    in property <bool> selected;
+    out property <bool> has-hover: touch.has-hover;
+    out property <bool> pressed: touch.pressed;
+    callback clicked();
+
+    private property <bool> interactive: enabled && !loading;
+    private property <bool> icon-only: text == "";
+    private property <bool> transparent-fill: variant == ButtonVariant.ghost || variant == ButtonVariant.link || variant == ButtonVariant.text;
+    // GPUI status buttons are a 20% tint of the status color, with the status
+    // color as the label. Primary and secondary stay solid.
+    private property <color> tone: variant == ButtonVariant.danger ? Theme.danger
+        : variant == ButtonVariant.warning ? Theme.warning
+        : variant == ButtonVariant.success ? Theme.success
+        : variant == ButtonVariant.info ? Theme.info
+        : variant == ButtonVariant.primary ? Theme.primary
+        : variant == ButtonVariant.secondary ? Theme.secondary
+        : Theme.foreground;
+    private property <bool> status-variant: variant == ButtonVariant.danger || variant == ButtonVariant.warning || variant == ButtonVariant.success || variant == ButtonVariant.info;
+    private property <color> ink: variant == ButtonVariant.link ? Theme.primary
+        : variant == ButtonVariant.text ? Theme.foreground.with-alpha(0.9)
+        : variant == ButtonVariant.ghost ? Theme.secondary-foreground
+        : variant == ButtonVariant.default ? Theme.foreground
+        : status-variant ? tone
+        : variant == ButtonVariant.primary ? (outline ? Theme.primary : Theme.primary-foreground)
+        : variant == ButtonVariant.secondary ? Theme.secondary-foreground
+        : Theme.foreground;
+    private property <color> shown-ink: enabled ? ink : Theme.muted-foreground;
+    private property <color> fill: transparent-fill || outline ? transparent
+        : status-variant ? tone.with-alpha(0.2)
+        : variant == ButtonVariant.primary ? Theme.primary
+        : variant == ButtonVariant.secondary ? Theme.secondary
+        : Theme.dark ? Theme.input.with-alpha(0.7) : Theme.background;
+    private property <color> disabled-fill: transparent-fill || outline ? transparent
+        : variant == ButtonVariant.primary ? Theme.primary.with-alpha(0.15)
+        : status-variant ? tone.with-alpha(0.15)
+        : variant == ButtonVariant.secondary ? Theme.secondary
+        : Theme.input.mix(Theme.background, 0.5);
+    private property <color> hover-fill: variant == ButtonVariant.ghost ? (Theme.dark ? Theme.accent.with-alpha(0.5) : Theme.accent)
+        : transparent-fill ? transparent
+        : outline ? (status-variant || variant == ButtonVariant.primary ? tone.with-alpha(0.1) : Theme.accent)
+        : status-variant ? tone.with-alpha(0.3)
+        : variant == ButtonVariant.primary ? Theme.primary.mix(Theme.background, 0.9)
+        : variant == ButtonVariant.secondary ? Theme.secondary.mix(Theme.background, 0.1)
+        : Theme.input.mix(Theme.background, 0.5);
+    // A selected control stays visibly on, not pressed: the same fill at a
+    // lighter weight. GPUI's outlined primary header button reads this way.
+    private property <color> selected-fill: variant == ButtonVariant.primary ? Theme.primary.with-alpha(0.10)
+        : status-variant ? tone.with-alpha(0.12)
+        : outline ? (variant == ButtonVariant.secondary ? Theme.accent : Theme.primary.with-alpha(0.10))
+        : transparent-fill ? Theme.primary.with-alpha(0.10)
+        : Theme.secondary;
+    private property <color> press-fill: variant == ButtonVariant.ghost ? Theme.input.mix(Theme.background, 0.3)
+        : transparent-fill ? transparent
+        : outline ? (status-variant || variant == ButtonVariant.primary ? tone.with-alpha(0.2) : Theme.hovered(Theme.accent))
+        : status-variant ? tone.with-alpha(0.4)
+        : variant == ButtonVariant.primary ? Theme.primary.darker(0.1)
+        : variant == ButtonVariant.secondary ? Theme.secondary.darker(0.1)
+        : Theme.input.mix(Theme.background, 0.3);
+    private property <color> border-tone: transparent-fill ? transparent
+        : variant == ButtonVariant.default ? Theme.input
+        : variant == ButtonVariant.secondary ? Theme.border
+        : status-variant ? tone.with-alpha(outline ? 0.45 : 0.2)
+        : variant == ButtonVariant.primary ? Theme.primary
+        : Theme.border;
+    // Large is a taller control with a larger label. Medium stays 32px.
+    private property <length> button-height: size == ControlSize.xsmall ? 20px
+        : size == ControlSize.small ? 24px
+        : size == ControlSize.large ? 40px
+        : 32px;
+    private property <length> label-size: size == ControlSize.large ? 18px : Theme.control-font-size(size);
+    private property <length> button-pad: icon-only || variant == ButtonVariant.link || variant == ButtonVariant.text ? 0px
+        : size == ControlSize.xsmall ? 4px
+        : size == ControlSize.small ? 8px
+        : size == ControlSize.large ? 16px
+        : 10px;
+    private property <length> corner: Theme.radius-md;
+
+    accessible-role: button;
+    accessible-label: text;
+    accessible-enabled: interactive;
+    accessible-action-default => {
+        root.clicked();
+    }
+
+    height: button-height;
+    min-width: icon-only ? self.height : 0px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+
+    background := Rectangle {
+        border-top-left-radius: group-start ? 0px : corner;
+        border-bottom-left-radius: (group-vertical ? group-end : group-start) ? 0px : corner;
+        border-top-right-radius: (group-vertical ? group-start : group-end) ? 0px : corner;
+        border-bottom-right-radius: group-end ? 0px : corner;
+        // GPUI draws a border on the default button and on outline variants only.
+        border-width: !transparent-fill && (variant == ButtonVariant.default || outline) ? 1px : 0px;
+        border-color: enabled ? border-tone : border-tone.with-alpha(0.5);
+        background: !enabled ? disabled-fill
+            : touch.pressed ? press-fill
+            : selected ? selected-fill
+            : touch.has-hover ? hover-fill
+            : fill;
+        animate background { duration: 100ms; }
+    }
+
+    if focus.has-focus: Rectangle {
+        x: -2px;
+        y: -2px;
+        width: parent.width + 4px;
+        height: parent.height + 4px;
+        border-radius: Theme.radius-md + 2px;
+        border-width: 2px;
+        border-color: Theme.ring;
+    }
+
+    HorizontalLayout {
+        padding-left: button-pad;
+        padding-right: button-pad;
+        spacing: size == ControlSize.xsmall || size == ControlSize.small ? 4px : 8px;
+        alignment: center;
+
+        if loading || icon != "": VerticalLayout {
+            alignment: center;
+            Icon {
+                name: loading ? "loader-circle" : icon;
+                spinning: loading;
+                color: shown-ink;
+                size: Theme.icon-size(size);
+            }
+        }
+
+        if !icon-only: VerticalLayout {
+            alignment: center;
+            spacing: 1px;
+
+            Text {
+                text: root.text;
+                color: shown-ink;
+                font-size: label-size;
+                font-weight: 500;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+
+            if variant == ButtonVariant.link: Rectangle {
+                height: 1px;
+                background: shown-ink;
+            }
+        }
+
+        if suffix-icon != "": VerticalLayout {
+            alignment: center;
+            Icon {
+                name: suffix-icon;
+                color: shown-ink;
+                size: Theme.icon-size(size);
+            }
+        }
+    }
+
+    focus := FocusScope {
+        enabled: interactive;
+        key-pressed(event) => {
+            if event.text == " " || event.text == "\n" {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+    }
+
+    touch := TouchArea {
+        enabled: interactive;
+        mouse-cursor: variant == ButtonVariant.link ? pointer : default;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// Joined buttons that share one outline. Set `group-start` and `group-end` on
+// each child so only the outer corners stay rounded.
+export component ButtonGroup inherits HorizontalLayout {
+    spacing: -1px;
+    alignment: center;
+    horizontal-stretch: 0;
+    @children
+}
+
+export component ButtonGroupVertical inherits VerticalLayout {
+    spacing: -1px;
+    alignment: start;
+    horizontal-stretch: 0;
+    @children
+}
